@@ -1,39 +1,51 @@
+#include <chrono>
 #include <memory>
-#include <functional>
+#include <string>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
-using std::placeholders::_1;
+using namespace std::chrono_literals;
 
-/*
- * TODO: Create a Class named 'SubscriberNode' that inherits from rclcpp::Node.
- * Requirements:
- * 1. The constructor should name the node "subscriber_node".
- * 2. Create a subscription to topic "/chatter" with message type std_msgs::msg::String.
- * 3. The subscription callback should:
- *    - Log using RCLCPP_INFO: "I heard: 'MESSAGE'" where MESSAGE is the received data
- */
-
-class SubscriberNode : public rclcpp::Node
+class PublisherNode : public rclcpp::Node
 {
 public:
-    SubscriberNode()
-        : Node("subscriber_node")
-    {
-        // TODO: Create the subscription here
-    }
+  PublisherNode() : Node("publisher_node"), counter_(0)
+  {
+    publisher_ = this->create_publisher<std_msgs::msg::String>("/counter", 10);
+
+    timer_ = this->create_wall_timer(
+      500ms,
+      std::bind(&PublisherNode::timer_callback, this));
+
+    RCLCPP_INFO(this->get_logger(), "Publisher node started");
+  }
 
 private:
-    // TODO: Define the topic_callback function here
+  void timer_callback()
+  {
+    std_msgs::msg::String message;
+    message.data = "Count: " + std::to_string(counter_);
 
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
+    publisher_->publish(message);
+
+    RCLCPP_INFO(
+      this->get_logger(),
+      "Publishing: '%s'",
+      message.data.c_str());
+
+    counter_++;
+  }
+
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+  rclcpp::TimerBase::SharedPtr timer_;
+  int counter_;
 };
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
-    rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<SubscriberNode>());
-    rclcpp::shutdown();
-    return 0;
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<PublisherNode>());
+  rclcpp::shutdown();
+  return 0;
 }
